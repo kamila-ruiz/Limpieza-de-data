@@ -40,8 +40,7 @@ names(mod5)
 ```{r}
 names(sum)
 ```
-justificacion por hogar: 
-el sujeto es en colectivo 
+
 
 seleccionar variables:
 ```{r}
