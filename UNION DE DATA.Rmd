@@ -1,0 +1,292 @@
+---
+title: "union de datas"
+author: "kamila"
+date: "2025-05-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rio)
+library(dplyr)
+mod2=import("Enaho01-2022-200.sav")
+mod3=import("Enaho01A-2022-300.sav")
+mod4=import("Enaho01A-2022-400.sav")
+mod5=import("Enaho01a-2022-500.sav")
+sum=import("Sumaria-2022.sav")
+```
+
+PREGUNTA DE INVESTIGACION: ¿Qué factores no económicos influyen en el nivel de pobreza por departamento a nivel nacional en 2022?
+
+```{r}
+names(mod2)
+```
+
+```{r}
+names(mod3)
+```
+
+```{r}
+names(mod4)
+```
+
+```{r}
+names(mod5)
+```
+
+```{r}
+names(sum)
+```
+justificacion por hogar: 
+el sujeto es en colectivo 
+
+seleccionar variables:
+```{r}
+mod2 = mod2 %>% select(UBIGEO, P207)
+mod3 = mod3 %>% select(UBIGEO, P301A)
+mod4 = mod4 %>% select(UBIGEO, P401)
+mod5 = mod5 %>% select(UBIGEO, P507)
+sum = sum %>% select(UBIGEO, POBREZA)
+```
+
+DEPARMENTO:
+
+POBREZA
+```{r}
+library(stringr)
+sum$UBIGEO=substr(sum$UBIGEO,1,2)
+```
+
+```{r}
+conteo=sum %>%
+  group_by(UBIGEO, POBREZA) %>%
+  summarise(total = n(), .groups = "drop")
+```
+
+```{r}
+library(tidyverse)
+pobreza_wide = conteo %>%
+  pivot_wider(
+    names_from = POBREZA,
+    values_from = total,
+    names_prefix = "POBREZA")
+```
+
+
+MOD2
+```{r}
+library(stringr)
+mod2$UBIGEO=substr(mod2$UBIGEO,1,2)
+```
+
+```{r}
+conteo2=mod2 %>%
+  group_by(UBIGEO, P207) %>%
+  summarise(total = n(), .groups = "drop")
+```
+
+```{r}
+library(tidyverse)
+mod2_wide = conteo2 %>%
+  pivot_wider(
+    names_from = P207,
+    values_from = total,
+    names_prefix = "SEXO")
+```
+
+MOD3
+```{r}
+library(stringr)
+mod3$UBIGEO=substr(mod3$UBIGEO,1,2)
+```
+
+RECATEGORIZAR VARIABLE NIVEL DE EDUCACION en 4 niveles (porque se tienen 12 niveles)
+
+NIVEL 1 = SIN NIVEL EDUCATIVO = solo variable "sin_nivel" --> 1
+NIVEL 2 = EDUCACION INICIAL = incluye "educación_inicial"--> 2 
+NIVEL 3 = EDUCACION PRIMARIA"primaria_incompleta", "primaria_completa" -->3,4
+NIVEL 4 = EDUCACION SECUNDARIA = "secundaria_incompleta", "secundaria_completa" --> 5 y 6
+NIVEL 5 = EDUCACION SUPERIOR NO UNIVERSITARIA = "superior_técnica_incompleta", "superior_técnica_completa" --> 7 y 8
+NIVEL 6 = EDUCACION SUPERIOR UNIVERSITARIA "superior_universitaria_incompleta", "superior_universitaria_completa", "maestria_doctorado" --> 9,10,11
+MIVEL 7 = EDUCACION BÁSICA ESPECIAL --> 12
+```{r}
+unique(mod3$P301A)
+```
+
+
+```{r}
+mod3=mod3%>%
+  mutate(NIVEL_EDU_REAGRUP = case_when(
+    P301A == 1 ~ 1,  # Nivel 1: Sin nivel educativo
+    P301A == 2 ~ 2,  # Nivel 2: Educación inicial
+    P301A %in% c(3, 4) ~ 3,  # Nivel 3: Educación primaria
+    P301A %in% c(5, 6) ~ 4,  # Nivel 4: Educación secundaria
+    P301A %in% c(7, 8) ~ 5,  # Nivel 5: superior no universitaria
+    P301A %in% c(9, 10, 11) ~ 6,  # Nivel 6: superior universitaria
+    P301A == 12 ~ 7,  # Nivel 7: Educación básica especial
+  ))
+```
+
+```{r}
+conteo3=mod3 %>%
+  group_by(UBIGEO, NIVEL_EDU_REAGRUP) %>%
+  summarise(total = n(), .groups = "drop")
+```
+
+```{r}
+library(tidyverse)
+mod3_wide = conteo3 %>%
+  pivot_wider(
+    names_from = NIVEL_EDU_REAGRUP,
+    values_from = total,
+    names_prefix = "NIVEL_EDU")
+```
+
+MOD4
+```{r}
+library(stringr)
+mod4$UBIGEO=substr(mod4$UBIGEO,1,2)
+```
+
+```{r}
+conteo4=mod4 %>%
+  group_by(UBIGEO, P401) %>%
+  summarise(total = n(), .groups = "drop")
+```
+
+```{r}
+library(tidyverse)
+mod4_wide = conteo4 %>%
+  pivot_wider(
+    names_from = P401,
+    values_from = total,
+    names_prefix = "MAL_CRO")
+```
+
+MOD5
+```{r}
+library(stringr)
+mod5$UBIGEO=substr(mod5$UBIGEO,1,2)
+```
+
+reagrupar variable tipo de empleo en solo 2 niveles: "FORMAL" e "INFORMAL"
+--> justificación: 
+INEI = La informalidad se calcula en base a la Metodología de la OIT, que comprende a aquellos trabajadores que laboran en unidades productivas no registradas en la administración tributaria (SUNAT), aquellos asalariados que no cuentan con seguro social pagado por el empleador y los trabajadores familiares no remunerados independientemente de la naturaleza formal o informal de la unidad productiva donde labora
+
+NIVEL 1 (FORMAL) = "Empleador_patrono", "Empleado", "Obrero" 
+--> 1,3,4
+NIVEL 2 (INFORMAL) = "Trabajador_indep", "Trabajador_fam_no_remun", "Trabajador_del_hogar", "Otro"
+--> 2,5,6,7
+
+
+```{r}
+unique(mod5$P507)
+```
+```{r}
+mod5=mod5%>%
+  mutate(TIPO_EMPLEO_REGRUP = case_when(
+    P507 %in% c(1,3,4) ~ 1,  # Nivel 1: empleo formal
+    P507 %in% c(2,5,6,7) ~ 2,  # Nivel 2: empleo informal
+  ))
+```
+
+```{r}
+conteo5=mod5 %>%
+  group_by(UBIGEO, TIPO_EMPLEO_REGRUP) %>%
+  summarise(total = n(), .groups = "drop")
+```
+
+```{r}
+library(tidyverse)
+mod5_wide = conteo5 %>%
+  pivot_wider(
+    names_from = TIPO_EMPLEO_REGRUP,
+    values_from = total,
+    names_prefix = "TIPO_EMPLEO")
+```
+
+JUNTAR DATAS
+```{r}
+enaho=merge(mod2_wide,mod3_wide,all.x = T,by='UBIGEO')
+```
+
+```{r}
+enaho=merge(enaho,mod4_wide,all.x = T,by='UBIGEO')
+```
+
+```{r}
+enaho=merge(enaho,mod5_wide,all.x = T,by='UBIGEO')
+```
+
+```{r}
+enaho=merge(enaho,pobreza_wide,all.x = T,by='UBIGEO')
+```
+
+crear variable DEPARTAMENTO
+```{r}
+enaho=enaho%>%
+  mutate(DEPARTAMENTO=case_when(
+    UBIGEO == "01" ~ "AMAZONAS",
+    UBIGEO == "02" ~ "ANCASH",
+    UBIGEO == "03" ~ "APURIMAC",
+    UBIGEO == "04" ~ "AREQUIPA",
+    UBIGEO == "05" ~ "AYACUCHO",
+    UBIGEO == "06" ~ "CAJAMARCA",
+    UBIGEO == "07" ~ "CALLAO",
+    UBIGEO == "08" ~ "CUSCO",
+    UBIGEO == "09" ~ "HUANCAVELICA",
+    UBIGEO == "10" ~ "HUANUCO",
+    UBIGEO == "11" ~ "ICA",
+    UBIGEO == "12" ~ "JUNIN",
+    UBIGEO == "13" ~ "LA LIBERTAD",
+    UBIGEO == "14" ~ "LAMBAYEQUE",
+    UBIGEO == "15" ~ "LIMA",
+    UBIGEO == "16" ~ "LORETO",
+    UBIGEO == "17" ~ "MADRE DE DIOS",
+    UBIGEO == "18" ~ "MOQUEGUA",
+    UBIGEO == "19" ~ "PASCO",
+    UBIGEO == "20" ~ "PIURA",
+    UBIGEO == "21" ~ "PUNO",
+    UBIGEO == "22" ~ "SAN MARTIN",
+    UBIGEO == "23" ~ "TACNA",
+    UBIGEO == "24" ~ "TUMBES",
+    UBIGEO == "25" ~ "UCAYALI"))
+head(enaho$DEPARTAMENTO)
+```
+eliminar columnas que hacen recuento de NAS
+```{r}
+enaho=enaho[,-c(4,12,15,18)]
+```
+
+modificar orden de columnas 
+```{r}
+enaho = enaho[,c(18,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17)]
+```
+
+```{r}
+str(enaho)
+```
+```{r}
+enaho=enaho%>%
+  mutate(DEPARTAMENTO = as.factor(DEPARTAMENTO)) %>%
+  mutate(across(-DEPARTAMENTO, as.numeric))
+```
+
+```{r}
+str(enaho)
+```
+
+```{r}
+export(enaho,"enaholimpia.csv", encoding="UTF-8")
+```
+
+
+
+--> preguntar si es necesario que deje la columna de cada variable independiente que cuenta la cantidad de NAS, pues en algunos casos la cantidad de NAS supera la cantidad (la variable POBREZA no tiene POBREZANA) --> esto podría usarlo en la interpretación al decir que la cantidad de datos NA supera la data real --> DECIDÍ ELIMNARLAS PQ TRAS REAGRUPAR la cantidad agrupada de NAs resultó menor a la cantidad de datos reales
+
+--> decirle que es un analisis cualitativo por eso hay muchas variables a la derecha (data ancha)
+
+--> preguntarle si debo o no filtrar los NAs por cada columna, pq a parte de la columna que termina en NA hay algunas columnas que tienen NA
